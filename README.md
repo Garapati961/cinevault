@@ -1,191 +1,288 @@
 # 🎬 CineVault
 
-### **Java Web Application • GitHub Actions CI/CD • AWS EC2 • Apache Tomcat**
-
 <p align="center">
-  <strong>A lightweight Java web application deployed automatically to AWS EC2 using a CI/CD pipeline.</strong>
-</p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Java-21-orange?style=for-the-badge&logo=openjdk" alt="Java 21">
-  <img src="https://img.shields.io/badge/Maven-Build-red?style=for-the-badge&logo=apachemaven" alt="Maven">
-  <img src="https://img.shields.io/badge/Tomcat-10-yellow?style=for-the-badge&logo=apachetomcat" alt="Tomcat">
-  <img src="https://img.shields.io/badge/AWS-EC2-orange?style=for-the-badge&logo=amazonaws" alt="AWS EC2">
-  <img src="https://img.shields.io/badge/GitHub-Actions-black?style=for-the-badge&logo=githubactions" alt="GitHub Actions">
+## Java Application • AWS EC2 • Apache Tomcat • GitHub Actions CI/CD
+
+A Java web application deployed through a multi-environment CI/CD pipeline:
+
+**DEV → TEST → PRE-PROD → PRODUCTION**
+
 </p>
 
 ---
 
-## 🌟 About the Project
+## 🚀 Project Overview
 
-**CineVault** is a lightweight Java web application created primarily as a **DevOps and CI/CD portfolio project**.
+CineVault is a Java web application created to demonstrate a practical
+multi-environment CI/CD deployment workflow using AWS EC2, Apache Tomcat,
+Maven, GitHub and GitHub Actions.
 
-The application itself is intentionally simple. The main focus is the complete deployment lifecycle:
+The application is packaged as a WAR file and automatically promoted through
+four separate environments.
 
 ```text
 Developer
     │
     │ git push
     ▼
- GitHub
+GitHub Repository
     │
     ▼
 GitHub Actions
     │
-    ├── Checkout source
-    ├── Setup Java 21
-    ├── Maven build
-    └── Generate WAR
-          │
-          ▼
-       SSH / SCP
-          │
-          ▼
-       AWS EC2
-          │
-          ▼
-      Apache Tomcat
-          │
-          ▼
-     CineVault 🎬
-```
+    ├── Checkout
+    ├── Java 21
+    ├── Maven Build
+    ├── Tests
+    └── WAR Package
+            │
+            ▼
+       cinevault.war
+            │
+            ▼
+          DEV
+            │
+            ▼
+          TEST
+            │
+            ▼
+        PRE-PROD
+            │
+            ▼
+       PRODUCTION
+🏗️ Architecture
+                         ┌──────────────────────┐
+                         │      DEVELOPER       │
+                         │                      │
+                         │      Java / Git      │
+                         └──────────┬───────────┘
+                                    │
+                                 git push
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │       GITHUB         │
+                         │     Repository       │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                    ┌──────────────────────────────┐
+                    │       GITHUB ACTIONS         │
+                    │                              │
+                    │  Checkout                    │
+                    │  Java 21                     │
+                    │  Maven Build                 │
+                    │  Tests                       │
+                    │  WAR Packaging               │
+                    └──────────────┬───────────────┘
+                                   │
+                              cinevault.war
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                    │
+              ▼                    ▼                    ▼
+       ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+       │     DEV     │      │    TEST     │      │  PRE-PROD   │
+       │   AWS EC2   │      │   AWS EC2   │      │   AWS EC2   │
+       │  Tomcat 10  │      │  Tomcat 10  │      │  Tomcat 10  │
+       └──────┬──────┘      └──────┬──────┘      └──────┬──────┘
+              │                    │                    │
+              └────────────────────┴────────────────────┘
+                                   │
+                              Promotion
+                                   │
+                                   ▼
+                         ┌─────────────────┐
+                         │   PRODUCTION    │
+                         │     AWS EC2     │
+                         │    Tomcat 10    │
+                         └─────────────────┘
+☁️ AWS Infrastructure
 
-A code change pushed to GitHub can therefore travel through the entire pipeline and become a new version of the live application.
+The project uses four EC2 instances.
 
----
+Environment	Private IP	Public IP	Instance Type	Application Server
+DEV	172.31.8.25	100.48.222.71	t3.micro	Tomcat 10
+TEST	172.31.13.102	44.203.24.28	t3.micro	Tomcat 10
+PRE-PROD	172.31.14.57	100.31.199.43	t3.micro	Tomcat 10
+PRODUCTION	172.31.9.44	100.54.24.160	t3.micro	Tomcat 10
 
-# 🏗️ Architecture
+All environments run:
 
-```text
-                    ┌───────────────────┐
-                    │     Developer     │
-                    │                   │
-                    │   Java / JSP      │
-                    └─────────┬─────────┘
-                              │
-                           git push
-                              │
-                              ▼
-                    ┌───────────────────┐
-                    │      GitHub       │
-                    │    Repository     │
-                    └─────────┬─────────┘
-                              │
-                              ▼
-                    ┌───────────────────┐
-                    │  GitHub Actions   │
-                    │                   │
-                    │  • Checkout       │
-                    │  • Java 21        │
-                    │  • Maven Build    │
-                    │  • Create WAR     │
-                    └─────────┬─────────┘
-                              │
-                         SSH / SCP
-                              │
-                              ▼
-              ┌────────────────────────────┐
-              │          AWS EC2           │
-              │                            │
-              │      Amazon Linux 2023     │
-              │             │              │
-              │       Apache Tomcat 10     │
-              │             │              │
-              │       cinevault.war        │
-              └──────────────┬─────────────┘
+Amazon Linux
+Java 21
+Apache Tomcat 10
+🔄 CI/CD Pipeline
+
+The complete deployment process is:
+
+                    git push
+                       │
+                       ▼
+                ┌─────────────┐
+                │    BUILD    │
+                │ Java 21     │
+                │ Maven       │
+                │ Tests       │
+                └──────┬──────┘
+                       │
+                       ▼
+                 cinevault.war
+                       │
+                       ▼
+                    DEV EC2
+                       │
+                       ▼
+                   TEST EC2
+                       │
+                       ▼
+                 PRE-PROD EC2
+                       │
+                       ▼
+                  PROD EC2
+                       │
+                       ▼
+                  Health Check
+                       │
+                       ▼
+                    SUCCESS
+
+The application is built once.
+
+The same WAR artifact is promoted through all four environments.
+
+              ONE BUILD
+                  │
+                  ▼
+           cinevault.war
+                  │
+        ┌─────────┼─────────┐
+        ▼         ▼         ▼
+       DEV       TEST     PRE-PROD
                              │
                              ▼
-                     🌐 Live Application
-```
+                            PROD
 
----
+This prevents different application builds from being accidentally deployed
+to different environments.
 
-# 🔄 CI/CD Pipeline
+🧪 Build and Test
 
-Every deployment follows this process:
+The application is built using Maven.
 
-### 1️⃣ Developer pushes code
-
-```bash
-git add .
-git commit -m "Update CineVault"
-git push
-```
-
-### 2️⃣ GitHub Actions starts
-
-The workflow automatically triggers when code is pushed to the `main` branch.
-
-### 3️⃣ Java environment is prepared
-
-GitHub Actions installs:
-
-```text
-Java 21
-Maven
-```
-
-### 4️⃣ Application is built
-
-```bash
 mvn clean package
-```
 
-This generates:
+The generated deployment artifact is:
 
-```text
 target/cinevault.war
-```
 
-### 5️⃣ WAR is transferred to EC2
+GitHub Actions then stores this WAR as a workflow artifact.
 
-GitHub Actions securely connects to the EC2 server using SSH.
+🚀 Deployment
 
-### 6️⃣ Tomcat deployment
+Each environment receives the WAR through SSH/SCP.
 
-The previous application is removed and the new WAR is deployed:
+The deployment process is:
 
-```text
-/usr/share/tomcat10/webapps/cinevault.war
-```
+Download WAR
+     │
+     ▼
+Copy WAR to EC2
+     │
+     ▼
+Stop Tomcat
+     │
+     ▼
+Remove previous deployment
+     │
+     ▼
+Copy new WAR
+     │
+     ▼
+Start Tomcat
+     │
+     ▼
+Wait for application
+     │
+     ▼
+Health Check
 
-### 7️⃣ Tomcat restarts
+The deployed application is available at:
 
-```bash
-sudo systemctl restart tomcat10
-```
+http://EC2-PUBLIC-IP:8080/cinevault/
+🔐 GitHub Environments
 
-### 8️⃣ Deployment health check
+The project uses four GitHub Environments:
 
-The workflow verifies:
+GitHub
+│
+├── dev
+├── test
+├── pre-production
+└── production
 
-```bash
+Each environment contains its own deployment secrets.
+
+Required secrets:
+
+EC2_HOST
+EC2_USER
+EC2_SSH_KEY
+
+Sensitive credentials are stored using GitHub Secrets and are not committed
+to the repository.
+
+🛡️ Deployment Protection
+
+The higher environments can be protected using GitHub Environment
+required reviewers.
+
+Recommended flow:
+
+DEV
+ │
+ │ automatic
+ ▼
+TEST
+ │
+ │ approval
+ ▼
+PRE-PROD
+ │
+ │ approval
+ ▼
+PRODUCTION
+
+This provides a controlled promotion process before production deployment.
+
+🔎 Deployment Verification
+
+Every deployment performs a health check directly on the target EC2 instance.
+
 curl -f http://localhost:8080/cinevault/
-```
 
-If the application does not respond successfully, the GitHub Actions workflow fails.
+If the application does not return a successful HTTP response, the GitHub
+Actions job fails.
 
----
+This prevents a successful deployment from being reported when the
+application is not responding.
 
-# 🛠️ Technology Stack
-
-| Technology          | Purpose                  |
-| ------------------- | ------------------------ |
-| ☕ Java 21           | Application development  |
-| 🌐 JSP              | Web presentation         |
-| ⚙️ Jakarta Servlet  | Request handling         |
-| 📦 Maven            | Build and WAR packaging  |
-| 🐱 Apache Tomcat 10 | Application server       |
-| ☁️ AWS EC2          | Cloud deployment server  |
-| 🔄 GitHub Actions   | CI/CD automation         |
-| 🔐 SSH              | Secure server deployment |
-| 🐙 Git/GitHub       | Source control           |
-
----
-
-# 📁 Project Structure
-
-```text
+🛠️ Technology Stack
+Technology	Purpose
+Java 21	Application development
+JSP	Web interface
+Maven	Build and packaging
+WAR	Deployment artifact
+Apache Tomcat 10	Java application server
+Amazon Linux	EC2 operating system
+AWS EC2	Cloud infrastructure
+Git	Version control
+GitHub	Source repository
+GitHub Actions	CI/CD automation
+SSH	Remote server access
+SCP	WAR transfer
+📁 Project Structure
 cinevault/
 │
 ├── .github/
@@ -195,9 +292,6 @@ cinevault/
 ├── src/
 │   └── main/
 │       ├── java/
-│       │   └── com/
-│       │       └── cinevault/
-│       │           └── HomeServlet.java
 │       │
 │       └── webapp/
 │           ├── index.jsp
@@ -206,310 +300,146 @@ cinevault/
 ├── pom.xml
 ├── .gitignore
 └── README.md
-```
-
----
-
-# ⚙️ Run Locally
-
-## Prerequisites
+💻 Run Locally
+Requirements
 
 Install:
 
-* Java 21
-* Maven
-* Apache Tomcat 10
-* Git
-
-Verify Java:
-
-```bash
-java -version
-```
-
-Verify Maven:
-
-```bash
-mvn -version
-```
-
----
-
-## Build the Application
-
-Clone the repository:
-
-```bash
-git clone https://github.com/YOUR_USERNAME/cinevault.git
-```
-
-Enter the project:
-
-```bash
-cd cinevault
-```
-
-Build:
-
-```bash
-mvn clean package
-```
-
-The WAR file will be generated at:
-
-```text
-target/cinevault.war
-```
-
----
-
-# 🐱 Deploy to Tomcat
-
-Copy the generated WAR file into Tomcat's `webapps` directory:
-
-```text
-cinevault.war
-        ↓
-Tomcat/webapps/
-```
-
-Start Tomcat.
-
-Then open:
-
-```text
-http://localhost:8080/cinevault/
-```
-
----
-
-# ☁️ AWS Deployment
-
-The production-style deployment uses:
-
-```text
-AWS EC2
-   │
-   ├── Amazon Linux 2023
-   ├── Java 21
-   └── Apache Tomcat 10
-```
-
-The application is deployed as:
-
-```text
-/usr/share/tomcat10/webapps/cinevault.war
-```
-
-The application becomes available through:
-
-```text
-http://EC2-PUBLIC-IP:8080/cinevault/
-```
-
----
-
-# 🔐 GitHub Actions Secrets
-
-The CI/CD pipeline uses GitHub Repository Secrets.
-
-Required secrets:
-
-```text
-EC2_HOST
-EC2_USER
-EC2_SSH_KEY
-```
-
-### EC2_HOST
-
-The public IPv4 address of the EC2 instance.
-
-### EC2_USER
-
-```text
-ec2-user
-```
-
-### EC2_SSH_KEY
-
-The private SSH key used to connect to the EC2 instance.
-
-> 🔒 Private keys are stored as GitHub Secrets and are never committed to the repository.
-
----
-
-# 🚀 GitHub Actions Workflow
-
-The workflow is located at:
-
-```text
-.github/workflows/cicd.yml
-```
-
-Pipeline:
-
-```text
-Push to main
-     │
-     ▼
-Checkout
-     │
-     ▼
 Java 21
-     │
-     ▼
-Maven Build
-     │
-     ▼
-cinevault.war
-     │
-     ▼
-SSH/SCP
-     │
-     ▼
-AWS EC2
-     │
-     ▼
-Tomcat 10
-     │
-     ▼
-Health Check
-     │
-     ▼
-Deployment Complete ✅
-```
+Maven
+Apache Tomcat 10
+Git
 
----
+Check Java:
 
-# 📸 Application Preview
+java -version
 
-> Add screenshots of the running application here.
+Check Maven:
 
-### CineVault Homepage
+mvn -version
 
-```text
-📷 Add screenshot here
-```
+Build the project:
 
-### GitHub Actions — Successful Deployment
+mvn clean package
 
-```text
-📷 Add GitHub Actions screenshot here
-```
+WAR file:
 
-### AWS EC2 — Tomcat Deployment
+target/cinevault.war
 
-```text
-📷 Add EC2/Tomcat screenshot here
-```
+Deploy the WAR to Tomcat and open:
 
----
+http://localhost:8080/cinevault/
+📸 Project Screenshots
+🎬 Application
 
-# 📊 DevOps Skills Demonstrated
+Add a screenshot of the running CineVault application here.
+
+Application running on Tomcat
+⚙️ GitHub Actions
+
+The completed pipeline:
+
+✅ Build & Test
+       ↓
+✅ Deploy → DEV
+       ↓
+✅ Deploy → TEST
+       ↓
+✅ Deploy → PRE-PROD
+       ↓
+✅ Deploy → PRODUCTION
+☁️ AWS Infrastructure
+
+Four EC2 environments:
+
+DEV
+TEST
+PRE-PROD
+PRODUCTION
+
+All running Java and Apache Tomcat.
+
+📊 DevOps Skills Demonstrated
 
 This project demonstrates practical experience with:
 
-* ✅ Git version control
-* ✅ GitHub repository management
-* ✅ GitHub Actions
-* ✅ CI/CD pipeline creation
-* ✅ Java 21
-* ✅ Maven builds
-* ✅ WAR packaging
-* ✅ Linux server administration
-* ✅ AWS EC2
-* ✅ Apache Tomcat
-* ✅ SSH-based deployment
-* ✅ Application health checks
-* ✅ Deployment automation
-* ✅ GitHub Secrets
-* ✅ Basic cloud deployment architecture
-
----
-
-# 🎯 Project Objective
-
-The primary objective of CineVault is not application complexity.
-
-The project was intentionally designed to demonstrate a complete **application delivery pipeline**:
-
-```text
-Code
- ↓
-Version Control
- ↓
-Build
- ↓
-Package
- ↓
-Deploy
- ↓
-Run
- ↓
-Verify
-```
-
-This makes the project easy to understand while keeping the focus on practical DevOps concepts.
-
----
-
-# 🔮 Future Improvements
-
-Possible future improvements include:
-
-* [ ] Nginx reverse proxy
-* [ ] HTTPS with Let's Encrypt
-* [ ] Custom domain
-* [ ] Docker containerization
-* [ ] Terraform infrastructure
-* [ ] AWS IAM deployment strategy
-* [ ] Blue/Green deployment
-* [ ] Automated rollback
-* [ ] Monitoring and logging
-* [ ] CloudWatch integration
-* [ ] AWS Application Load Balancer
-* [ ] Auto Scaling
-
----
-
-# 🧠 What I Learned
-
-Through this project, I practiced how a Java application moves from a developer's machine to a cloud server through an automated CI/CD pipeline.
-
-The complete process:
-
-```text
-Java Development
-       ↓
-Maven
-       ↓
-WAR Packaging
-       ↓
 Git
-       ↓
 GitHub
-       ↓
 GitHub Actions
-       ↓
+CI/CD
+Java 21
+Maven
+WAR packaging
+Apache Tomcat
+Linux
 AWS EC2
-       ↓
-Tomcat
-       ↓
-Live Application
-```
+SSH
+SCP
+GitHub Environments
+GitHub Secrets
+Multi-environment deployments
+Artifact promotion
+Deployment automation
+Health checks
+Production deployment workflow
+🎯 Project Objective
 
----
+The primary objective of CineVault is to demonstrate a complete application
+delivery lifecycle.
 
-# 👨‍💻 Author
+SOURCE CODE
+     │
+     ▼
+VERSION CONTROL
+     │
+     ▼
+BUILD
+     │
+     ▼
+TEST
+     │
+     ▼
+PACKAGE
+     │
+     ▼
+DEV
+     │
+     ▼
+TEST
+     │
+     ▼
+PRE-PROD
+     │
+     ▼
+PRODUCTION
+     │
+     ▼
+VERIFY
 
-**Vamsi Krishna**
+The application itself is intentionally lightweight so that the focus remains
+on the deployment and DevOps workflow.
 
-Aspiring **AWS / DevOps Engineer**
+🔮 Future Improvements
 
-Focused on:
+Potential improvements include:
 
-```text
+Docker containerization
+Terraform Infrastructure as Code
+AWS Application Load Balancer
+HTTPS
+Route 53
+CloudWatch monitoring
+Automated rollback
+Blue/Green deployment
+AWS IAM-based deployment
+Private deployment architecture
+Monitoring and alerting
+Infrastructure automation
+👨‍💻 Author
+Vamsi Krishna
+
+Aspiring AWS / DevOps Engineer
+
 AWS
 DevOps
 CI/CD
@@ -518,12 +448,30 @@ Terraform
 Java
 Cloud Deployment
 Automation
-```
+⭐ Final Result
 
----
+CineVault demonstrates:
 
-## ⭐ Project
+Java Application
+       ↓
+Maven
+       ↓
+WAR
+       ↓
+GitHub
+       ↓
+GitHub Actions
+       ↓
+DEV
+       ↓
+TEST
+       ↓
+PRE-PROD
+       ↓
+PRODUCTION
+       ↓
+Tomcat
+       ↓
+Live Application
 
-If you find this project useful or interesting, consider giving the repository a ⭐.
-
-**Built with Java. Deployed with AWS. Automated with GitHub Actions. 🚀**
+Build → Test → Deploy → Verify 🚀

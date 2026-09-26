@@ -11,13 +11,14 @@ permissions:
 jobs:
 
   # ==========================================================
-  # 1. BUILD
+  # BUILD AND TEST
   # ==========================================================
   build:
     name: Build & Test
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout source
         uses: actions/checkout@v4
 
@@ -33,19 +34,21 @@ jobs:
 
       - name: Verify WAR
         run: |
+          echo "Checking generated WAR..."
           test -f target/cinevault.war
-          echo "WAR created successfully:"
           ls -lh target/cinevault.war
+          echo "WAR created successfully."
 
       - name: Upload WAR artifact
         uses: actions/upload-artifact@v4
         with:
           name: cinevault-war
           path: target/cinevault.war
+          retention-days: 7
 
 
   # ==========================================================
-  # 2. DEV
+  # DEV
   # ==========================================================
   deploy-dev:
     name: Deploy → DEV
@@ -56,6 +59,7 @@ jobs:
       name: dev
 
     steps:
+
       - name: Download WAR
         uses: actions/download-artifact@v4
         with:
@@ -63,37 +67,70 @@ jobs:
           path: artifact
 
       - name: Prepare SSH
+        shell: bash
         run: |
+          set -e
+
           mkdir -p ~/.ssh
+
           printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/cinevault.pem
+
           chmod 600 ~/.ssh/cinevault.pem
+
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Deploy to DEV
+        shell: bash
         run: |
-          scp -i ~/.ssh/cinevault.pem \
+          set -e
+
+          echo "Deploying CineVault to DEV..."
+
+          scp \
+            -i ~/.ssh/cinevault.pem \
             artifact/cinevault.war \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war"
 
-          ssh -i ~/.ssh/cinevault.pem \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh \
+            -i ~/.ssh/cinevault.pem \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            'bash -s' << 'EOF'
 
+          set -e
+
+          echo "Stopping Tomcat..."
+          sudo systemctl stop tomcat10
+
+          echo "Removing previous deployment..."
           sudo rm -rf /usr/share/tomcat10/webapps/cinevault
           sudo rm -f /usr/share/tomcat10/webapps/cinevault.war
 
-          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/
+          echo "Installing new WAR..."
+          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/cinevault.war
 
-          sudo systemctl restart tomcat10
+          echo "Starting Tomcat..."
+          sudo systemctl start tomcat10
 
-          sleep 8
+          echo "Waiting for application..."
+          for i in {1..12}; do
+            if curl -fsS http://localhost:8080/cinevault/ > /dev/null; then
+              echo "DEV application is responding."
+              exit 0
+            fi
 
-          curl -f http://localhost:8080/cinevault/
+            sleep 5
+          done
+
+          echo "DEV deployment health check failed."
+          sudo systemctl status tomcat10 --no-pager || true
+
+          exit 1
 
           EOF
 
 
   # ==========================================================
-  # 3. TEST
+  # TEST
   # ==========================================================
   deploy-test:
     name: Deploy → TEST
@@ -104,6 +141,7 @@ jobs:
       name: test
 
     steps:
+
       - name: Download WAR
         uses: actions/download-artifact@v4
         with:
@@ -111,37 +149,70 @@ jobs:
           path: artifact
 
       - name: Prepare SSH
+        shell: bash
         run: |
+          set -e
+
           mkdir -p ~/.ssh
+
           printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/cinevault.pem
+
           chmod 600 ~/.ssh/cinevault.pem
+
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Deploy to TEST
+        shell: bash
         run: |
-          scp -i ~/.ssh/cinevault.pem \
+          set -e
+
+          echo "Deploying CineVault to TEST..."
+
+          scp \
+            -i ~/.ssh/cinevault.pem \
             artifact/cinevault.war \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war"
 
-          ssh -i ~/.ssh/cinevault.pem \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh \
+            -i ~/.ssh/cinevault.pem \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            'bash -s' << 'EOF'
 
+          set -e
+
+          echo "Stopping Tomcat..."
+          sudo systemctl stop tomcat10
+
+          echo "Removing previous deployment..."
           sudo rm -rf /usr/share/tomcat10/webapps/cinevault
           sudo rm -f /usr/share/tomcat10/webapps/cinevault.war
 
-          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/
+          echo "Installing new WAR..."
+          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/cinevault.war
 
-          sudo systemctl restart tomcat10
+          echo "Starting Tomcat..."
+          sudo systemctl start tomcat10
 
-          sleep 8
+          echo "Waiting for application..."
+          for i in {1..12}; do
+            if curl -fsS http://localhost:8080/cinevault/ > /dev/null; then
+              echo "TEST application is responding."
+              exit 0
+            fi
 
-          curl -f http://localhost:8080/cinevault/
+            sleep 5
+          done
+
+          echo "TEST deployment health check failed."
+          sudo systemctl status tomcat10 --no-pager || true
+
+          exit 1
 
           EOF
 
 
   # ==========================================================
-  # 4. PRE-PRODUCTION
+  # PRE-PRODUCTION
   # ==========================================================
   deploy-preprod:
     name: Deploy → PRE-PROD
@@ -152,6 +223,7 @@ jobs:
       name: pre-production
 
     steps:
+
       - name: Download WAR
         uses: actions/download-artifact@v4
         with:
@@ -159,37 +231,70 @@ jobs:
           path: artifact
 
       - name: Prepare SSH
+        shell: bash
         run: |
+          set -e
+
           mkdir -p ~/.ssh
+
           printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/cinevault.pem
+
           chmod 600 ~/.ssh/cinevault.pem
+
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Deploy to PRE-PROD
+        shell: bash
         run: |
-          scp -i ~/.ssh/cinevault.pem \
+          set -e
+
+          echo "Deploying CineVault to PRE-PROD..."
+
+          scp \
+            -i ~/.ssh/cinevault.pem \
             artifact/cinevault.war \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war"
 
-          ssh -i ~/.ssh/cinevault.pem \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh \
+            -i ~/.ssh/cinevault.pem \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            'bash -s' << 'EOF'
 
+          set -e
+
+          echo "Stopping Tomcat..."
+          sudo systemctl stop tomcat10
+
+          echo "Removing previous deployment..."
           sudo rm -rf /usr/share/tomcat10/webapps/cinevault
           sudo rm -f /usr/share/tomcat10/webapps/cinevault.war
 
-          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/
+          echo "Installing new WAR..."
+          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/cinevault.war
 
-          sudo systemctl restart tomcat10
+          echo "Starting Tomcat..."
+          sudo systemctl start tomcat10
 
-          sleep 8
+          echo "Waiting for application..."
+          for i in {1..12}; do
+            if curl -fsS http://localhost:8080/cinevault/ > /dev/null; then
+              echo "PRE-PROD application is responding."
+              exit 0
+            fi
 
-          curl -f http://localhost:8080/cinevault/
+            sleep 5
+          done
+
+          echo "PRE-PROD deployment health check failed."
+          sudo systemctl status tomcat10 --no-pager || true
+
+          exit 1
 
           EOF
 
 
   # ==========================================================
-  # 5. PRODUCTION
+  # PRODUCTION
   # ==========================================================
   deploy-production:
     name: Deploy → PRODUCTION
@@ -200,6 +305,7 @@ jobs:
       name: production
 
     steps:
+
       - name: Download WAR
         uses: actions/download-artifact@v4
         with:
@@ -207,30 +313,63 @@ jobs:
           path: artifact
 
       - name: Prepare SSH
+        shell: bash
         run: |
+          set -e
+
           mkdir -p ~/.ssh
+
           printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/cinevault.pem
+
           chmod 600 ~/.ssh/cinevault.pem
+
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Deploy to PRODUCTION
+        shell: bash
         run: |
-          scp -i ~/.ssh/cinevault.pem \
+          set -e
+
+          echo "Deploying CineVault to PRODUCTION..."
+
+          scp \
+            -i ~/.ssh/cinevault.pem \
             artifact/cinevault.war \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war"
 
-          ssh -i ~/.ssh/cinevault.pem \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh \
+            -i ~/.ssh/cinevault.pem \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            'bash -s' << 'EOF'
 
+          set -e
+
+          echo "Stopping Tomcat..."
+          sudo systemctl stop tomcat10
+
+          echo "Removing previous deployment..."
           sudo rm -rf /usr/share/tomcat10/webapps/cinevault
           sudo rm -f /usr/share/tomcat10/webapps/cinevault.war
 
-          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/
+          echo "Installing new WAR..."
+          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/cinevault.war
 
-          sudo systemctl restart tomcat10
+          echo "Starting Tomcat..."
+          sudo systemctl start tomcat10
 
-          sleep 8
+          echo "Waiting for application..."
+          for i in {1..12}; do
+            if curl -fsS http://localhost:8080/cinevault/ > /dev/null; then
+              echo "PRODUCTION application is responding."
+              exit 0
+            fi
 
-          curl -f http://localhost:8080/cinevault/
+            sleep 5
+          done
+
+          echo "PRODUCTION deployment health check failed."
+          sudo systemctl status tomcat10 --no-pager || true
+
+          exit 1
 
           EOF
