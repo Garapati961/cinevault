@@ -12,11 +12,9 @@ jobs:
 
     steps:
 
-      # 1. Get source code
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Install Java 21
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
@@ -24,11 +22,9 @@ jobs:
           java-version: '21'
           cache: maven
 
-      # 3. Build WAR
       - name: Build CineVault
         run: mvn -B clean package
 
-      # 4. Copy WAR to EC2
       - name: Deploy WAR to EC2
         uses: appleboy/scp-action@v1
         with:
@@ -38,7 +34,6 @@ jobs:
           source: "target/cinevault.war"
           target: "/tmp/"
 
-      # 5. Install WAR and restart Tomcat
       - name: Restart Tomcat
         uses: appleboy/ssh-action@v1
         with:
