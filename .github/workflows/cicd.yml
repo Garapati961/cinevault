@@ -1,23 +1,54 @@
 name: CineVault CI/CD
+
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
+
 jobs:
-  build:
+  build-and-deploy:
+
     runs-on: ubuntu-latest
+
     steps:
+
+      # 1. Get source code
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Java 21
+
+      # 2. Install Java 21
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Build WAR
+
+      # 3. Build WAR
+      - name: Build CineVault
         run: mvn -B clean package
-      - name: Upload WAR
-        uses: actions/upload-artifact@v4
+
+      # 4. Copy WAR to EC2
+      - name: Deploy WAR to EC2
+        uses: appleboy/scp-action@v1
         with:
-          name: cinevault-war
-          path: target/cinevault.war
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "target/cinevault.war"
+          target: "/tmp/"
+
+      # 5. Install WAR and restart Tomcat
+      - name: Restart Tomcat
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            sudo rm -rf /usr/share/tomcat10/webapps/cinevault
+            sudo rm -f /usr/share/tomcat10/webapps/cinevault.war
+            sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/
+            sudo systemctl restart tomcat10
+            sleep 8
+            curl -f http://localhost:8080/cinevault/
