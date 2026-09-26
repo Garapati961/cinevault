@@ -1,17 +1,24 @@
-name: CineVault CI/CD
+name: CineVault Multi-Environment CI/CD
 
 on:
   push:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
-  build-and-deploy:
+
+  # ==========================================================
+  # 1. BUILD
+  # ==========================================================
+  build:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Setup Java 21
@@ -21,8 +28,39 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build WAR
+      - name: Build and test
         run: mvn -B clean package
+
+      - name: Verify WAR
+        run: |
+          test -f target/cinevault.war
+          echo "WAR created successfully:"
+          ls -lh target/cinevault.war
+
+      - name: Upload WAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinevault-war
+          path: target/cinevault.war
+
+
+  # ==========================================================
+  # 2. DEV
+  # ==========================================================
+  deploy-dev:
+    name: Deploy → DEV
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: dev
+
+    steps:
+      - name: Download WAR
+        uses: actions/download-artifact@v4
+        with:
+          name: cinevault-war
+          path: artifact
 
       - name: Prepare SSH
         run: |
@@ -31,14 +69,156 @@ jobs:
           chmod 600 ~/.ssh/cinevault.pem
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Copy WAR to EC2
+      - name: Deploy to DEV
         run: |
           scp -i ~/.ssh/cinevault.pem \
-            target/cinevault.war \
+            artifact/cinevault.war \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war
 
-      - name: Deploy to Tomcat
+          ssh -i ~/.ssh/cinevault.pem \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+
+          sudo rm -rf /usr/share/tomcat10/webapps/cinevault
+          sudo rm -f /usr/share/tomcat10/webapps/cinevault.war
+
+          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/
+
+          sudo systemctl restart tomcat10
+
+          sleep 8
+
+          curl -f http://localhost:8080/cinevault/
+
+          EOF
+
+
+  # ==========================================================
+  # 3. TEST
+  # ==========================================================
+  deploy-test:
+    name: Deploy → TEST
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+
+    environment:
+      name: test
+
+    steps:
+      - name: Download WAR
+        uses: actions/download-artifact@v4
+        with:
+          name: cinevault-war
+          path: artifact
+
+      - name: Prepare SSH
         run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/cinevault.pem
+          chmod 600 ~/.ssh/cinevault.pem
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy to TEST
+        run: |
+          scp -i ~/.ssh/cinevault.pem \
+            artifact/cinevault.war \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war
+
+          ssh -i ~/.ssh/cinevault.pem \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+
+          sudo rm -rf /usr/share/tomcat10/webapps/cinevault
+          sudo rm -f /usr/share/tomcat10/webapps/cinevault.war
+
+          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/
+
+          sudo systemctl restart tomcat10
+
+          sleep 8
+
+          curl -f http://localhost:8080/cinevault/
+
+          EOF
+
+
+  # ==========================================================
+  # 4. PRE-PRODUCTION
+  # ==========================================================
+  deploy-preprod:
+    name: Deploy → PRE-PROD
+    needs: deploy-test
+    runs-on: ubuntu-latest
+
+    environment:
+      name: pre-production
+
+    steps:
+      - name: Download WAR
+        uses: actions/download-artifact@v4
+        with:
+          name: cinevault-war
+          path: artifact
+
+      - name: Prepare SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/cinevault.pem
+          chmod 600 ~/.ssh/cinevault.pem
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy to PRE-PROD
+        run: |
+          scp -i ~/.ssh/cinevault.pem \
+            artifact/cinevault.war \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war
+
+          ssh -i ~/.ssh/cinevault.pem \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+
+          sudo rm -rf /usr/share/tomcat10/webapps/cinevault
+          sudo rm -f /usr/share/tomcat10/webapps/cinevault.war
+
+          sudo cp /tmp/cinevault.war /usr/share/tomcat10/webapps/
+
+          sudo systemctl restart tomcat10
+
+          sleep 8
+
+          curl -f http://localhost:8080/cinevault/
+
+          EOF
+
+
+  # ==========================================================
+  # 5. PRODUCTION
+  # ==========================================================
+  deploy-production:
+    name: Deploy → PRODUCTION
+    needs: deploy-preprod
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+
+    steps:
+      - name: Download WAR
+        uses: actions/download-artifact@v4
+        with:
+          name: cinevault-war
+          path: artifact
+
+      - name: Prepare SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/cinevault.pem
+          chmod 600 ~/.ssh/cinevault.pem
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy to PRODUCTION
+        run: |
+          scp -i ~/.ssh/cinevault.pem \
+            artifact/cinevault.war \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/cinevault.war
+
           ssh -i ~/.ssh/cinevault.pem \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
 
