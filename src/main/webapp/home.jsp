@@ -24,7 +24,7 @@ footer{padding:28px 8%;border-top:1px solid #222633;color:#697184}
 <nav><div class="logo">🎬 Cine<span>Vault</span></div><div class="navtag">Java • Maven • Tomcat • AWS</div></nav>
 <div class="hero"><div>
 <span class="badge">JAVA WEB APPLICATION</span>
-<h1>Stories.<br><span>Engineered.</span></h1>
+<h1>Stories.<br><span>Deployed.</span></h1>
 <p>CineVault is a lightweight movie showcase created specifically to demonstrate a professional Java CI/CD deployment journey — from Git push to a live Apache Tomcat server.</p>
 <a class="button" href="#project">Explore Project ↓</a>
 </div></div>
